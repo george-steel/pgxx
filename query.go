@@ -5,21 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jmoiron/sqlx"
 )
-
-// String type for SQL literals.
-// Having this be a separate type instead of string helps prevent accidental SQL injection.
-type SQLQuery string
-
-func ExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any, error) {
-	questionQuery, args, err := sqlx.Named(string(query), argsStruct)
-	if err != nil {
-		return "", nil, err
-	}
-	posQuery := sqlx.Rebind(sqlx.DOLLAR, questionQuery)
-	return SQLQuery(posQuery), args, nil
-}
 
 // Context in which to do database operations. Can be a Pool, Conn, or Tx
 type PoolOrTx interface {
