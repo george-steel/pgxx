@@ -10,10 +10,6 @@ import (
 // This currently calls the relevant functions in sqlx internally,
 // but there is an option to fork the mapping code for more optimized access.
 
-// String type for SQL literals.
-// Having this be a separate type instead of string helps prevent accidental SQL injection.
-type SQLQuery string
-
 // Converts a query with named parameters to one using positional parameters.
 // Panics if a query does not match the type of struct given, to simplify use with hardcoded queries.
 func ExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any) {

@@ -7,6 +7,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+// String type for SQL literals.
+// Having this be a separate type instead of string helps prevent accidental SQL injection.
+type SQLQuery string
+
 // Context in which to do database operations. Can be a Pool, Conn, or Tx
 type PoolOrTx interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
