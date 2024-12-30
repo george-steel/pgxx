@@ -23,10 +23,7 @@ func Exec(ctx context.Context, conn PoolOrTx, query SQLQuery, args ...any) (int,
 }
 
 func NamedExec(ctx context.Context, conn PoolOrTx, namedQuery SQLQuery, argsStruct any) (int, error) {
-	query, args, err := ExtractNamedQuery(namedQuery, argsStruct)
-	if err != nil {
-		return 0, err
-	}
+	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	tag, err := conn.Exec(ctx, string(query), args...)
 	if err != nil {
 		return 0, err
@@ -48,10 +45,7 @@ func Query[T any](ctx context.Context, conn PoolOrTx, query SQLQuery, args ...an
 }
 
 func NamedQuery[T any](ctx context.Context, conn PoolOrTx, namedQuery SQLQuery, argsStruct any) ([]T, error) {
-	query, args, err := ExtractNamedQuery(namedQuery, argsStruct)
-	if err != nil {
-		return nil, err
-	}
+	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	cursor, err := conn.Query(ctx, string(query), args...)
 	if err != nil {
 		return nil, err
@@ -78,10 +72,7 @@ func QuerySingle[T any](ctx context.Context, conn PoolOrTx, query SQLQuery, args
 }
 
 func NamedQuerySinge[T any](ctx context.Context, conn PoolOrTx, namedQuery SQLQuery, argsStruct any) (*T, error) {
-	query, args, err := ExtractNamedQuery(namedQuery, argsStruct)
-	if err != nil {
-		return nil, err
-	}
+	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	cursor, err := conn.Query(ctx, string(query), args...)
 	if err != nil {
 		return nil, err

@@ -5,11 +5,28 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Bidirectional mapping between structs, cursors, and queries.
+//
+// This currently calls the relevant functions in sqlx internally,
+// but there is an option to fork the mapping code for more optimized access.
+
 // String type for SQL literals.
 // Having this be a separate type instead of string helps prevent accidental SQL injection.
 type SQLQuery string
 
-func ExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any, error) {
+// Converts a query with named parameters to one using positional parameters.
+// Panics if a query does not match the type of struct given, to simplify use with hardcoded queries.
+func ExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any) {
+	questionQuery, args, err := sqlx.Named(string(query), argsStruct)
+	if err != nil {
+		panic(err)
+	}
+	posQuery := sqlx.Rebind(sqlx.DOLLAR, questionQuery)
+	return SQLQuery(posQuery), args
+}
+
+// Error-tolerant version of ExtractNamedQuery for use with dynamic query strings
+func MaybeExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any, error) {
 	questionQuery, args, err := sqlx.Named(string(query), argsStruct)
 	if err != nil {
 		return "", nil, err
