@@ -1,6 +1,8 @@
 package pgxx
 
 import (
+	"fmt"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jmoiron/sqlx"
 )
@@ -29,6 +31,20 @@ func MaybeExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any, er
 	}
 	posQuery := sqlx.Rebind(sqlx.DOLLAR, questionQuery)
 	return SQLQuery(posQuery), args, nil
+}
+
+// Extracts fields from a slice of structs for a CopyFrom (bulk insert) query
+func ExtractCopyParams[T any](fields []FieldName, records []T) [][]any {
+	pseudoQuery := ListNamedFieldParams(fields)
+	var out [][]any
+	for _, r := range records {
+		_, args, err := sqlx.Named(string(pseudoQuery), r)
+		if err != nil {
+			panic(fmt.Errorf("error extracting fields for copy: %w", err))
+		}
+		out = append(out, args)
+	}
+	return out
 }
 
 // Wrapper for pgx.Rows implementing sqlx.rowsi

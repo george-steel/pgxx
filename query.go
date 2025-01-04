@@ -2,6 +2,7 @@ package pgxx
 
 import (
 	"context"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,6 +17,7 @@ type PoolOrTx interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
 }
 
 func Exec(ctx context.Context, conn PoolOrTx, query SQLQuery, args ...any) (int, error) {
@@ -87,4 +89,16 @@ func NamedQuerySinge[T any](ctx context.Context, conn PoolOrTx, namedQuery SQLQu
 		return nil, err
 	}
 	return Head(out), nil
+}
+
+func NamedCopyFrom[T any](ctx context.Context, conn PoolOrTx, tableName SQLQuery, fields []FieldName, records []T) (int, error) {
+	var pgxFields []string
+	for _, f := range fields {
+		pgxFields = append(pgxFields, string(f))
+	}
+	pgxTable := pgx.Identifier(strings.Split(string(tableName), "."))
+
+	rows := ExtractCopyParams(fields, records)
+	nrows, err := conn.CopyFrom(ctx, pgxTable, pgxFields, pgx.CopyFromRows(rows))
+	return int(nrows), err
 }
