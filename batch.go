@@ -15,7 +15,7 @@ func RunBatch(ctx context.Context, conn PoolOrTx, batch *pgx.Batch) error {
 	return conn.SendBatch(ctx, batch).Close()
 }
 
-func QueueExec(batch *pgx.Batch, out *int, query SQLQuery, args ...any) {
+func QueueExec(batch *pgx.Batch, out *int, query SQL, args ...any) {
 	batch.Queue(string(query), args...).Exec(func(tag pgconn.CommandTag) error {
 		if out != nil {
 			*out = int(tag.RowsAffected())
@@ -24,18 +24,18 @@ func QueueExec(batch *pgx.Batch, out *int, query SQLQuery, args ...any) {
 	})
 }
 
-func QueueNamedExec(batch *pgx.Batch, out *int, namedQuery SQLQuery, argsStruct any) {
+func QueueNamedExec(batch *pgx.Batch, out *int, namedQuery SQL, argsStruct any) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	QueueExec(batch, out, query, args)
 }
 
-func QueueQuery[T any](batch *pgx.Batch, out *[]T, query SQLQuery, args ...any) {
+func QueueQuery[T any](batch *pgx.Batch, out *[]T, query SQL, args ...any) {
 	batch.Queue(string(query), args...).Query(func(cursor pgx.Rows) error {
 		return ScanRows(cursor, out)
 	})
 }
 
-func QueueNamedQuery[T any](batch *pgx.Batch, out *[]T, namedQuery SQLQuery, argsStruct any) {
+func QueueNamedQuery[T any](batch *pgx.Batch, out *[]T, namedQuery SQL, argsStruct any) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	batch.Queue(string(query), args...).Query(func(cursor pgx.Rows) error {
 		return ScanRows(cursor, out)

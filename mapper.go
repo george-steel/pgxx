@@ -14,23 +14,23 @@ import (
 
 // Converts a query with named parameters to one using positional parameters.
 // Panics if a query does not match the type of struct given, to simplify use with hardcoded queries.
-func ExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any) {
+func ExtractNamedQuery(query SQL, argsStruct any) (SQL, []any) {
 	questionQuery, args, err := sqlx.Named(string(query), argsStruct)
 	if err != nil {
 		panic(err)
 	}
 	posQuery := sqlx.Rebind(sqlx.DOLLAR, questionQuery)
-	return SQLQuery(posQuery), args
+	return SQL(posQuery), args
 }
 
 // Error-tolerant version of ExtractNamedQuery for use with dynamic query strings
-func MaybeExtractNamedQuery(query SQLQuery, argsStruct any) (SQLQuery, []any, error) {
+func MaybeExtractNamedQuery(query SQL, argsStruct any) (SQL, []any, error) {
 	questionQuery, args, err := sqlx.Named(string(query), argsStruct)
 	if err != nil {
 		return "", nil, err
 	}
 	posQuery := sqlx.Rebind(sqlx.DOLLAR, questionQuery)
-	return SQLQuery(posQuery), args, nil
+	return SQL(posQuery), args, nil
 }
 
 // Extracts fields from a slice of structs for a CopyFrom (bulk insert) query
