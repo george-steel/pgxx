@@ -12,9 +12,24 @@ import (
 // Returns if a (possibly wrapped) error is due to a transaction being clobbered by other dbactivity.
 // If this returns true, the transaction should be retried.
 func IsTxCollisionError(err error) bool {
+	if err == nil {
+		return false
+	}
 	var pgerr *pgconn.PgError
 	if errors.As(err, &pgerr) {
-		return pgerr.Code == "40001"
+		return pgerr.Code == "40001" || pgerr.Code == "40P01"
+	}
+	return false
+}
+
+// Transactions inserting with random keys generated within the transaction might want to retry on a unique constraint failure.
+func IsUniqueViolationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgerr *pgconn.PgError
+	if errors.As(err, &pgerr) {
+		return pgerr.Code == "23505" || pgerr.Code == "23P01"
 	}
 	return false
 }
@@ -29,7 +44,7 @@ var MaxTxRetries int = 10
 // Runs a transaction in a client-side retry loop to handle collisions.
 // Safe to use in serializable/ACID mode.
 // retryableAction must be idempotent in its non-db side-effects as it will be run multiple times if the transaction retries.
-func RunInTxWithOptions(conn TxContext, ctx context.Context, txOptions pgx.TxOptions, retryableAction func(pgx.Tx) error) error {
+func RunInTxWithOptions(conn TxContext, ctx context.Context, txOptions pgx.TxOptions, retryOnUniqueViolation bool, retryableAction func(pgx.Tx) error) error {
 	var tx pgx.Tx
 	var err error
 	defer func() {
@@ -52,7 +67,7 @@ func RunInTxWithOptions(conn TxContext, ctx context.Context, txOptions pgx.TxOpt
 			}
 		}
 
-		if IsTxCollisionError((err)) {
+		if IsTxCollisionError(err) || (retryOnUniqueViolation && IsUniqueViolationError(err)) {
 			rollbackerr := tx.Rollback(ctx)
 			if rollbackerr != nil {
 				return rollbackerr
@@ -66,9 +81,10 @@ func RunInTxWithOptions(conn TxContext, ctx context.Context, txOptions pgx.TxOpt
 	return fmt.Errorf("maximum transaction retries exceeded: %w", err)
 }
 
+var DefaultTxOptions = pgx.TxOptions{
+	IsoLevel: pgx.Serializable,
+}
+
 func RunInTx(conn TxContext, ctx context.Context, txOptions pgx.TxOptions, retryableAction func(pgx.Tx) error) error {
-	options := pgx.TxOptions{
-		IsoLevel: pgx.Serializable,
-	}
-	return RunInTxWithOptions(conn, ctx, options, retryableAction)
+	return RunInTxWithOptions(conn, ctx, DefaultTxOptions, false, retryableAction)
 }
