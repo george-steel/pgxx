@@ -12,6 +12,9 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+// re-export for convienence
+type Tx = pgx.Tx
+
 // Returns if a (possibly wrapped) error is due to a transaction being clobbered by other dbactivity.
 // If this returns true, the transaction should be retried.
 func IsTxCollisionError(err error) bool {
@@ -88,6 +91,6 @@ var DefaultTxOptions = pgx.TxOptions{
 	IsoLevel: pgx.Serializable,
 }
 
-func RunInTx(conn TxContext, ctx context.Context, txOptions pgx.TxOptions, retryableAction func(pgx.Tx) error) error {
+func RunInTx(conn TxContext, ctx context.Context, retryableAction func(pgx.Tx) error) error {
 	return RunInTxWithOptions(conn, ctx, DefaultTxOptions, false, retryableAction)
 }
