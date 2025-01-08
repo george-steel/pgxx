@@ -1,3 +1,6 @@
+// Copyright 2024-2025 George Steel
+// SPDX-License-Identifier: MIT
+
 package pgxx
 
 // Helper function to return the first item of a list, or nil if empty

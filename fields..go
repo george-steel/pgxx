@@ -1,3 +1,6 @@
+// Copyright 2024-2025 George Steel
+// SPDX-License-Identifier: MIT
+
 package pgxx
 
 import "reflect"
