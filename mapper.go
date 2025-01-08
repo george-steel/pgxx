@@ -1,7 +1,9 @@
 package pgxx
 
 import (
+	"database/sql"
 	"fmt"
+	"reflect"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jmoiron/sqlx"
@@ -79,22 +81,28 @@ func (r *rowsAdapter) Scan(dst ...any) error {
 	return r.rows.Scan(dst...)
 }
 
-func ScanRowsUntyped[T any](rows pgx.Rows, dst any) error {
-	rowsi := rowsAdapter{rows: rows}
-	return sqlx.StructScan(&rowsi, dst)
-}
-
 // Scan rows to a slice of structs using sqlx mapping.
 func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
-	rowsi := rowsAdapter{rows: rows}
-	return sqlx.StructScan(&rowsi, dst)
-}
-
-// Helper function to return the first item of a list, or nil if empty
-func Head[T any](xs []T) *T {
-	if len(xs) == 0 {
-		return nil
+	defer rows.Close()
+	t := reflect.TypeFor[T]()
+	if t.Kind() == reflect.Struct && !reflect.PointerTo(t).Implements(reflect.TypeFor[sql.Scanner]()) {
+		// scanning into a struct that is meant to hold multiple columns
+		rowsi := rowsAdapter{rows: rows}
+		return sqlx.StructScan(&rowsi, dst)
 	} else {
-		return &xs[0]
+		// scanning a single column into a primitive type or a Scanner struct
+		if len(rows.FieldDescriptions()) != 1 {
+			return fmt.Errorf("expected a single column, got %v", rows.FieldDescriptions())
+		}
+		*dst = (*dst)[:0]
+		for rows.Next() {
+			var r T
+			err := rows.Scan(&r)
+			if err != nil {
+				return err
+			}
+			*dst = append(*dst, r)
+		}
+		return rows.Err()
 	}
 }

@@ -77,7 +77,7 @@ func QuerySingle[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...a
 	return Head(out), nil
 }
 
-func NamedQuerySinge[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (*T, error) {
+func NamedQuerySingle[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (*T, error) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	cursor, err := conn.Query(ctx, string(query), args...)
 	if err != nil {
