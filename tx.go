@@ -50,7 +50,7 @@ var MaxTxRetries int = 10
 // Runs a transaction in a client-side retry loop to handle collisions.
 // Safe to use in serializable/ACID mode.
 // retryableAction must be idempotent in its non-db side-effects as it will be run multiple times if the transaction retries.
-func RunInTxWithOptions(conn TxContext, ctx context.Context, txOptions pgx.TxOptions, retryOnUniqueViolation bool, retryableAction func(pgx.Tx) error) error {
+func RunInTxWithOptions(ctx context.Context, conn TxContext, txOptions pgx.TxOptions, retryOnUniqueViolation bool, retryableAction func(pgx.Tx) error) error {
 	var tx pgx.Tx
 	var err error
 	defer func() {
@@ -91,6 +91,6 @@ var DefaultTxOptions = pgx.TxOptions{
 	IsoLevel: pgx.Serializable,
 }
 
-func RunInTx(conn TxContext, ctx context.Context, retryableAction func(pgx.Tx) error) error {
-	return RunInTxWithOptions(conn, ctx, DefaultTxOptions, false, retryableAction)
+func RunInTx(ctx context.Context, conn TxContext, retryableAction func(pgx.Tx) error) error {
+	return RunInTxWithOptions(ctx, conn, DefaultTxOptions, false, retryableAction)
 }

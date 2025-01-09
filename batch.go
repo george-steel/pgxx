@@ -29,7 +29,7 @@ func QueueExec(batch *pgx.Batch, out *int, query SQL, args ...any) {
 
 func QueueNamedExec(batch *pgx.Batch, out *int, namedQuery SQL, argsStruct any) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
-	QueueExec(batch, out, query, args)
+	QueueExec(batch, out, query, args...)
 }
 
 func QueueQuery[T any](batch *pgx.Batch, out *[]T, query SQL, args ...any) {
