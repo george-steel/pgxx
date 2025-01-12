@@ -45,6 +45,7 @@ type TxContext interface {
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
 }
 
+// Maximum number of times to retry a transaction on collision before erroring out. Changeable.
 var MaxTxRetries int = 10
 
 // Runs a transaction in a client-side retry loop to handle collisions.
@@ -87,10 +88,12 @@ func RunInTxWithOptions(ctx context.Context, conn TxContext, txOptions pgx.TxOpt
 	return fmt.Errorf("maximum transaction retries exceeded: %w", err)
 }
 
+// SERIALIZABLE transaction options for use with client-side retry.
 var DefaultTxOptions = pgx.TxOptions{
 	IsoLevel: pgx.Serializable,
 }
 
+// Runs a action inside a SERIALIZABLE transaction with client-side retry.
 func RunInTx(ctx context.Context, conn TxContext, retryableAction func(pgx.Tx) error) error {
 	return RunInTxWithOptions(ctx, conn, DefaultTxOptions, false, retryableAction)
 }

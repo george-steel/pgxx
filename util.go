@@ -21,3 +21,9 @@ func OrZero[T any](p *T) T {
 		return *p
 	}
 }
+
+// Function to generate a pointer to a constant calue inside an expression.
+// Useful for nullable fields in struct literals.
+func NotNil[T any](x T) *T {
+	return &x
+}

@@ -23,6 +23,7 @@ type PoolOrTx interface {
 	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
 }
 
+// Run a statement with positional parameters and return the number of rows affected.
 func Exec(ctx context.Context, conn PoolOrTx, query SQL, args ...any) (int, error) {
 	tag, err := conn.Exec(ctx, string(query), args...)
 	if err != nil {
@@ -31,6 +32,7 @@ func Exec(ctx context.Context, conn PoolOrTx, query SQL, args ...any) (int, erro
 	return int(tag.RowsAffected()), nil
 }
 
+// Run a statement with named parameters (pulling them out of a struct) and return the number of rows affected.
 func NamedExec(ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (int, error) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	tag, err := conn.Exec(ctx, string(query), args...)
@@ -40,6 +42,8 @@ func NamedExec(ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct an
 	return int(tag.RowsAffected()), nil
 }
 
+// Run a query with positional parameters and read out the results as a slice of
+// either structs (for multiple-column queries) or primitives (for single-column queries only).
 func Query[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...any) ([]T, error) {
 	cursor, err := conn.Query(ctx, string(query), args...)
 	if err != nil {
@@ -53,6 +57,9 @@ func Query[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...any) ([
 	return out, nil
 }
 
+// Run a query with named parameters parameters (pulling them out of a struct) and
+// read out the results as a slice of either structs (for multiple-column queries)
+// or primitives (for single-column queries only).
 func NamedQuery[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) ([]T, error) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	cursor, err := conn.Query(ctx, string(query), args...)
@@ -67,6 +74,9 @@ func NamedQuery[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsS
 	return out, nil
 }
 
+// Run a query with positional parameters that returns at most one row and
+// read out the results as a struct (for multiple-column queries) or a primitive (for single-column queries only).
+// Returns nil if the query produces no rows. Discards if multiple rows are produced.
 func QuerySingle[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...any) (*T, error) {
 	cursor, err := conn.Query(ctx, string(query), args...)
 	if err != nil {
@@ -80,6 +90,9 @@ func QuerySingle[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...a
 	return Head(out), nil
 }
 
+// un a query with named parameters parameters (pulling them out of a struct) that returns at most one row and
+// read out the results as a struct (for multiple-column queries) or a primitive (for single-column queries only).
+// Returns nil if the query produces no rows. Discards if multiple rows are produced.
 func NamedQuerySingle[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (*T, error) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	cursor, err := conn.Query(ctx, string(query), args...)
@@ -94,6 +107,7 @@ func NamedQuerySingle[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL,
 	return Head(out), nil
 }
 
+// Runs a COPY FROM STDIN query for bulk insertion, with the records to insert passed in as structs.
 func NamedCopyFrom[T any](ctx context.Context, conn PoolOrTx, tableName SQL, fields []FieldName, records []T) (int, error) {
 	var pgxFields []string
 	for _, f := range fields {

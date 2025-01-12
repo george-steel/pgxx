@@ -25,8 +25,8 @@ func TestExtractCopyParams(t *testing.T) {
 	}
 
 	foos := []Foo{
-		Foo{A: 1, B: "a", Bar: Bar{C: 1.0}},
-		Foo{A: 2, B: "b", Bar: Bar{C: 2.0}},
+		{A: 1, B: "a", Bar: Bar{C: 1.0}},
+		{A: 2, B: "b", Bar: Bar{C: 2.0}},
 	}
 
 	expectedRows := [][]any{
