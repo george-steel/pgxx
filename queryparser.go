@@ -3,7 +3,6 @@
 package pgxx
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -35,11 +34,11 @@ type sqlLexer struct {
 
 type stateFn func(*sqlLexer) stateFn
 
-func rewriteQuery(na map[string]any, sql string, isStrict bool) (newSQL string, newArgs []any, err error) {
+func RewriteNamedQuery(namedQuery SQL) (SQL, []FieldName) {
 	l := &sqlLexer{
-		src:           sql,
+		src:           string(namedQuery),
 		stateFn:       rawState,
-		nameToOrdinal: make(map[namedArg]int, len(na)),
+		nameToOrdinal: make(map[namedArg]int),
 	}
 
 	for l.stateFn != nil {
@@ -57,24 +56,12 @@ func rewriteQuery(na map[string]any, sql string, isStrict bool) (newSQL string, 
 		}
 	}
 
-	newArgs = make([]any, len(l.nameToOrdinal))
+	newArgs := make([]FieldName, len(l.nameToOrdinal))
 	for name, ordinal := range l.nameToOrdinal {
-		var found bool
-		newArgs[ordinal-1], found = na[string(name)]
-		if isStrict && !found {
-			return "", nil, fmt.Errorf("argument %s found in sql query but not present in StrictNamedArgs", name)
-		}
+		newArgs[ordinal-1] = FieldName(name)
 	}
 
-	if isStrict {
-		for name := range na {
-			if _, found := l.nameToOrdinal[namedArg(name)]; !found {
-				return "", nil, fmt.Errorf("argument %s of StrictNamedArgs not found in sql query", name)
-			}
-		}
-	}
-
-	return sb.String(), newArgs, nil
+	return SQL(sb.String()), newArgs
 }
 
 func rawState(l *sqlLexer) stateFn {
