@@ -9,41 +9,45 @@ import (
 	"reflect"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jmoiron/sqlx"
 )
 
 // Bidirectional mapping between structs, cursors, and queries.
 //
-// This currently calls the relevant functions in sqlx internally,
-// but there is an option to fork the mapping code for more optimized access.
-
-// Converts a query with named parameters to one using positional parameters.
+// Converts a query with named parameters (using the @param syntak of pgx.NamedArgs)
+// to one using positional parameters.
 // Panics if a query does not match the type of struct given, to simplify use with hardcoded queries.
 func ExtractNamedQuery(query SQL, argsStruct any) (SQL, []any) {
-	questionQuery, args, err := sqlx.Named(string(query), argsStruct)
+	posQuery, fields := RewriteNamedQuery(query)
+	val := reflect.Indirect(reflect.ValueOf(argsStruct))
+	mapping := structMappingOf(val.Type())
+
+	args, err := mapping.extractNamedArgs(fields, val)
 	if err != nil {
 		panic(err)
 	}
-	posQuery := sqlx.Rebind(sqlx.DOLLAR, questionQuery)
-	return SQL(posQuery), args
+	return posQuery, args
 }
 
 // Error-tolerant version of ExtractNamedQuery for use with dynamic query strings
 func MaybeExtractNamedQuery(query SQL, argsStruct any) (SQL, []any, error) {
-	questionQuery, args, err := sqlx.Named(string(query), argsStruct)
+	posQuery, fields := RewriteNamedQuery(query)
+	val := reflect.Indirect(reflect.ValueOf(argsStruct))
+	mapping := structMappingOf(val.Type())
+
+	args, err := mapping.extractNamedArgs(fields, val)
 	if err != nil {
 		return "", nil, err
 	}
-	posQuery := sqlx.Rebind(sqlx.DOLLAR, questionQuery)
-	return SQL(posQuery), args, nil
+	return posQuery, args, nil
 }
 
 // Extracts fields from a slice of structs for a CopyFrom (bulk insert) query
 func ExtractCopyParams[T any](fields []FieldName, records []T) [][]any {
-	pseudoQuery := ListNamedFieldParams(fields)
+	mapper := structMappingFor[T]()
 	var out [][]any
-	for _, r := range records {
-		_, args, err := sqlx.Named(string(pseudoQuery), r)
+	for i := range records {
+		val := reflect.ValueOf(&records[i]).Elem()
+		args, err := mapper.extractNamedArgs(fields, val)
 		if err != nil {
 			panic(fmt.Errorf("error extracting fields for copy: %w", err))
 		}
@@ -52,46 +56,35 @@ func ExtractCopyParams[T any](fields []FieldName, records []T) [][]any {
 	return out
 }
 
-// Wrapper for pgx.Rows implementing sqlx.rowsi
-// This allows us to bypass the default databsse/sql adapter and use pgx types and transaction support
-type rowsAdapter struct {
-	rows pgx.Rows
-}
-
-func (r *rowsAdapter) Close() error {
-	r.rows.Close()
-	return nil
-}
-
-func (r *rowsAdapter) Columns() ([]string, error) {
-	fields := r.rows.FieldDescriptions()
-	cols := make([]string, len(fields))
-	for i, fd := range fields {
-		cols[i] = string(fd.Name)
-	}
-	return cols, nil
-}
-
-func (r *rowsAdapter) Err() error {
-	return r.rows.Err()
-}
-
-func (r *rowsAdapter) Next() bool {
-	return r.rows.Next()
-}
-
-func (r *rowsAdapter) Scan(dst ...any) error {
-	return r.rows.Scan(dst...)
-}
-
-// Scan rows to a slice of structs using sqlx mapping.
+// Scan rows to a slice of either structs (using the mapping defined by db and db_prefix tags)
+// or single values (for queries returning a single column).
 func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 	defer rows.Close()
 	t := reflect.TypeFor[T]()
 	if t.Kind() == reflect.Struct && !reflect.PointerTo(t).Implements(reflect.TypeFor[sql.Scanner]()) {
 		// scanning into a struct that is meant to hold multiple columns
-		rowsi := rowsAdapter{rows: rows}
-		return sqlx.StructScan(&rowsi, dst)
+		mapping := structMappingOf(t)
+		fields := rows.FieldDescriptions()
+		cols := make([]FieldName, len(fields))
+		for i, fd := range fields {
+			cols[i] = FieldName(fd.Name)
+		}
+
+		*dst = (*dst)[:0]
+		for rows.Next() {
+			var record T
+			ptrs, err := mapping.extractScanPointers(cols, reflect.ValueOf(&record))
+			if err != nil {
+				return err
+			}
+			var r T
+			err = rows.Scan(ptrs...)
+			if err != nil {
+				return err
+			}
+			*dst = append(*dst, r)
+		}
+		return rows.Err()
 	} else {
 		// scanning a single column into a primitive type or a Scanner struct
 		if len(rows.FieldDescriptions()) != 1 {
