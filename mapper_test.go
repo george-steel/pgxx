@@ -4,6 +4,7 @@
 package pgxx
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -75,4 +76,16 @@ func TestNamedQuery(t *testing.T) {
 	expectedArgs := []any{1, "a", 1.0}
 	assert.Equal(t, expectedQuery, query)
 	assert.Equal(t, expectedArgs, args)
+}
+
+func TestExtractScanPointers(t *testing.T) {
+	var foo Foo2
+	fooMapping := structMappingFor[Foo]()
+	ptrs, err := fooMapping.extractScanPointers([]FieldName{"a", "b", "c"}, reflect.ValueOf(&foo))
+
+	assert.NoError(t, err)
+	assert.Len(t, ptrs, 3)
+	assert.Same(t, &foo.A, ptrs[0])
+	assert.Same(t, &foo.B, ptrs[1])
+	assert.Same(t, &foo.Bar2.C, ptrs[2])
 }
