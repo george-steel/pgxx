@@ -4,7 +4,6 @@
 package pgxx
 
 import (
-	"database/sql"
 	"fmt"
 	"reflect"
 
@@ -61,7 +60,7 @@ func ExtractCopyParams[T any](fields []FieldName, records []T) [][]any {
 func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 	defer rows.Close()
 	t := reflect.TypeFor[T]()
-	if t.Kind() == reflect.Struct && !reflect.PointerTo(t).Implements(reflect.TypeFor[sql.Scanner]()) {
+	if isMappable(t) {
 		// scanning into a struct that is meant to hold multiple columns
 		mapping := structMappingOf(t)
 		fields := rows.FieldDescriptions()
@@ -75,7 +74,7 @@ func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 			var record T
 			ptrs, err := mapping.extractScanPointers(cols, reflect.ValueOf(&record))
 			if err != nil {
-				return err
+				panic(err)
 			}
 			var r T
 			err = rows.Scan(ptrs...)
@@ -88,7 +87,7 @@ func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 	} else {
 		// scanning a single column into a primitive type or a Scanner struct
 		if len(rows.FieldDescriptions()) != 1 {
-			return fmt.Errorf("expected a single column, got %v", rows.FieldDescriptions())
+			panic(fmt.Errorf("expected a single column with return type %v, got %v", t, rows.FieldDescriptions()))
 		}
 		*dst = (*dst)[:0]
 		for rows.Next() {
@@ -100,5 +99,75 @@ func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 			*dst = append(*dst, r)
 		}
 		return rows.Err()
+	}
+}
+
+// Scan a single row from a query result.
+// If requireExact is true, errors on an empty result set or too many rows,
+// if it is false, discard extra rows and leave dst unchanged if empty.
+func ScanSingleRow[T any](rows pgx.Rows, dst *T, requireExact bool) error {
+	defer rows.Close()
+	t := reflect.TypeFor[T]()
+	if isMappable(t) {
+		// scanning into a struct that is meant to hold multiple columns
+		mapping := structMappingOf(t)
+		fields := rows.FieldDescriptions()
+		cols := make([]FieldName, len(fields))
+		for i, fd := range fields {
+			cols[i] = FieldName(fd.Name)
+		}
+
+		if rows.Next() {
+			ptrs, err := mapping.extractScanPointers(cols, reflect.ValueOf(dst))
+			if err != nil {
+				panic(err)
+			}
+
+			err = rows.Scan(ptrs...)
+			if err != nil {
+				return err
+			}
+			if requireExact {
+				if rows.Next() {
+					return pgx.ErrTooManyRows
+				}
+			}
+			rows.Close()
+			return rows.Err()
+		} else {
+			if rows.Err() != nil {
+				return rows.Err()
+			} else if requireExact {
+				return pgx.ErrNoRows
+			} else {
+				return nil
+			}
+		}
+	} else {
+		// scanning a single column into a primitive type or a Scanner struct
+		if len(rows.FieldDescriptions()) != 1 {
+			panic(fmt.Errorf("expected a single column with return type %v, got %v", t, rows.FieldDescriptions()))
+		}
+		if rows.Next() {
+			err := rows.Scan(dst)
+			if err != nil {
+				return err
+			}
+			if requireExact {
+				if rows.Next() {
+					return pgx.ErrTooManyRows
+				}
+			}
+			rows.Close()
+			return rows.Err()
+		} else {
+			if rows.Err() != nil {
+				return rows.Err()
+			} else if requireExact {
+				return pgx.ErrNoRows
+			} else {
+				return nil
+			}
+		}
 	}
 }

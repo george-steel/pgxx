@@ -76,35 +76,68 @@ func NamedQuery[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsS
 
 // Run a query with positional parameters that returns at most one row and
 // read out the results as a struct (for multiple-column queries) or a primitive (for single-column queries only).
-// Returns nil if the query produces no rows. Discards if multiple rows are produced.
-func QuerySingle[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...any) (*T, error) {
+// Returns the zero value if the query produces no rows. Discards if multiple rows are produced.
+func QueryOne[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...any) (T, error) {
+	var out T
 	cursor, err := conn.Query(ctx, string(query), args...)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
-	var out []T
-	err = ScanRows(cursor, &out)
+	err = ScanSingleRow(cursor, &out, false)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
-	return Head(out), nil
+	return out, nil
 }
 
-// un a query with named parameters parameters (pulling them out of a struct) that returns at most one row and
+// Run a query with positional parameters that returns at most one row and
 // read out the results as a struct (for multiple-column queries) or a primitive (for single-column queries only).
-// Returns nil if the query produces no rows. Discards if multiple rows are produced.
-func NamedQuerySingle[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (*T, error) {
+// Errors if zero or multiple rows are produced.
+func QueryExactlyOne[T any](ctx context.Context, conn PoolOrTx, query SQL, args ...any) (T, error) {
+	var out T
+	cursor, err := conn.Query(ctx, string(query), args...)
+	if err != nil {
+		return out, err
+	}
+	err = ScanSingleRow(cursor, &out, true)
+	if err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+// Run a query with named parameters parameters (pulling them out of a struct) that returns at most one row and
+// read out the results as a struct (for multiple-column queries) or a primitive (for single-column queries only).
+// Returns the zero value if the query produces no rows. Discards if multiple rows are produced.
+func NamedQueryOne[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (T, error) {
+	var out T
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	cursor, err := conn.Query(ctx, string(query), args...)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
-	var out []T
-	err = ScanRows(cursor, &out)
+	err = ScanSingleRow(cursor, &out, false)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
-	return Head(out), nil
+	return out, nil
+}
+
+// Run a query with named parameters parameters (pulling them out of a struct) that returns at most one row and
+// read out the results as a struct (for multiple-column queries) or a primitive (for single-column queries only).
+// Errors if zero or multiple rows are produced.
+func NamedQueryExactlyOne[T any](ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (T, error) {
+	var out T
+	query, args := ExtractNamedQuery(namedQuery, argsStruct)
+	cursor, err := conn.Query(ctx, string(query), args...)
+	if err != nil {
+		return out, err
+	}
+	err = ScanSingleRow(cursor, &out, true)
+	if err != nil {
+		return out, err
+	}
+	return out, nil
 }
 
 // Runs a COPY FROM STDIN query for bulk insertion, with the records to insert passed in as structs.

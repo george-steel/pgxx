@@ -1,11 +1,23 @@
 package pgxx
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"slices"
 	"sync"
 )
+
+func isMappable(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Pointer:
+		return isMappable(t.Elem())
+	case reflect.Struct:
+		return !reflect.PointerTo(t).Implements(reflect.TypeFor[sql.Scanner]())
+	default:
+		return false
+	}
+}
 
 type structMapping struct {
 	StructType    reflect.Type
