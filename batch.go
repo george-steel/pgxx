@@ -59,7 +59,8 @@ func QueueQueryOne[T any](batch *pgx.Batch, out *T, query SQL, args ...any) {
 
 // Version of Query which queues to a batch.
 // Writes results into *out (which must not be nil) when the batch is run.
-func QueueNamedQuery[T any](batch *pgx.Batch, out *[]T, query SQL, args ...any) {
+func QueueNamedQuery[T any](batch *pgx.Batch, out *[]T, namedQuery SQL, argsStruct any) {
+	query, args := ExtractNamedQuery(namedQuery, argsStruct)
 	batch.Queue(string(query), args...).Query(func(cursor pgx.Rows) error {
 		return ScanRows(cursor, out)
 	})

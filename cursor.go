@@ -76,12 +76,11 @@ func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 			if err != nil {
 				panic(err)
 			}
-			var r T
 			err = rows.Scan(ptrs...)
 			if err != nil {
 				return err
 			}
-			*dst = append(*dst, r)
+			*dst = append(*dst, record)
 		}
 		return rows.Err()
 	} else {
@@ -91,12 +90,12 @@ func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 		}
 		*dst = (*dst)[:0]
 		for rows.Next() {
-			var r T
-			err := rows.Scan(&r)
+			var record T
+			err := rows.Scan(&record)
 			if err != nil {
 				return err
 			}
-			*dst = append(*dst, r)
+			*dst = append(*dst, record)
 		}
 		return rows.Err()
 	}

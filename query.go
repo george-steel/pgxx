@@ -32,6 +32,22 @@ func Exec(ctx context.Context, conn PoolOrTx, query SQL, args ...any) (int, erro
 	return int(tag.RowsAffected()), nil
 }
 
+// Run a statement with positional parameters effecting exactly one row.
+// Errors if no or nultiple rows are affected.
+func ExecExactlyOne(ctx context.Context, conn PoolOrTx, query SQL, args ...any) error {
+	tag, err := conn.Exec(ctx, string(query), args...)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	} else if tag.RowsAffected() > 1 {
+		return pgx.ErrTooManyRows
+	} else {
+		return nil
+	}
+}
+
 // Run a statement with named parameters (pulling them out of a struct) and return the number of rows affected.
 func NamedExec(ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) (int, error) {
 	query, args := ExtractNamedQuery(namedQuery, argsStruct)
@@ -40,6 +56,23 @@ func NamedExec(ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct an
 		return 0, err
 	}
 	return int(tag.RowsAffected()), nil
+}
+
+// Run a statement with named parameters (pulling them out of a struct) effecting exactly one row.
+// Errors if no or nultiple rows are affected.
+func NamedExecExactlyOne(ctx context.Context, conn PoolOrTx, namedQuery SQL, argsStruct any) error {
+	query, args := ExtractNamedQuery(namedQuery, argsStruct)
+	tag, err := conn.Exec(ctx, string(query), args...)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	} else if tag.RowsAffected() > 1 {
+		return pgx.ErrTooManyRows
+	} else {
+		return nil
+	}
 }
 
 // Run a query with positional parameters and read out the results as a slice of
