@@ -56,6 +56,7 @@ func RunInTxWithOptions(ctx context.Context, conn TxContext, txOptions pgx.TxOpt
 	var err error
 	defer func() {
 		if tx != nil {
+			// As per pgx docs, this does nothing if the tx is already committed or rolled back.
 			tx.Rollback(ctx)
 		}
 	}()
