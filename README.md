@@ -8,3 +8,4 @@ Additionally, to support composite fields and ad-hoc joins, a struct field can i
 Unlike `sqlx`, by directly using `pgx` types in its interface instead of `database/sql`, this library allows for the use of serializable/ACID transactions (which are not supported by `database/sql`)
 using either client-side retries (with `RunInTx`) or batch mode (for fewer network roundtrips and better performance if queries are independent). `integration_test.go` contains example usage of all transactional modes.
 
+In order to keep the API simple, functionality based on reflection will panic on type errors unless otherwise indicated.
