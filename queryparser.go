@@ -1,5 +1,7 @@
 // Copyright (c) 2013-2024 Jack Christensen, 2025 George Steel
 // Forked from https://github.com/jackc/pgx/blob/master/named_args.go
+// SPDX-License-Identifier: MIT
+
 package pgxx
 
 import (

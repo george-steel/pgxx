@@ -1,6 +1,8 @@
 pgxx
 =====
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/george-steel/pgxx.svg)](https://pkg.go.dev/github.com/george-steel/pgxx)
+
 A high-level helper for [pgx](https://pkg.go.dev/github.com/jackc/pgx/v5)
 where most operations are done with a single function call that takes and returns standard go and pgx types.
 Functionality is heavily inspired by [sqlx](https://pkg.go.dev/github.com/jmoiron/sqlx),

@@ -7,7 +7,7 @@
 // a number of helper functions to format lists of fields in various contexts (such as [ListFields])
 // as well as the [DBFields] function to get the lase of mapable fields for a given go type.
 //
-// For ACID transactions use RunInTx, which provides collision detection and a client-side retry loop.
+// For ACID transactions use [RunInTx], which provides collision detection and a client-side retry loop.
 // If all queries areindependent of each other, the entire transaction may be run in a single round-trip using the batch API,
 // accessed through [NewBatch], [RunBatch] and the various Queue functions (such as [QueueQuery]).
 package pgxx
