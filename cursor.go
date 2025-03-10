@@ -74,7 +74,7 @@ func ScanRows[T any](rows pgx.Rows, dst *[]T) error {
 			var record T
 			ptrs, err := mapping.extractScanPointers(cols, reflect.ValueOf(&record))
 			if err != nil {
-				panic(err)
+				return err
 			}
 			err = rows.Scan(ptrs...)
 			if err != nil {
@@ -119,7 +119,7 @@ func ScanSingleRow[T any](rows pgx.Rows, dst *T, requireExact bool) error {
 		if rows.Next() {
 			ptrs, err := mapping.extractScanPointers(cols, reflect.ValueOf(dst))
 			if err != nil {
-				panic(err)
+				return err
 			}
 
 			err = rows.Scan(ptrs...)
